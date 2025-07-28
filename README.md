@@ -93,9 +93,3 @@ AI should play as "O" and consider all board states recursively to determine the
 * Firebase leaderboards - later on
 * Animations and UI polish
 * Sound effects
-
----
-
----
-
-Let me know if you'd like me to generate the Firebase multiplayer game logic next, or the AI logic for solo mode.
