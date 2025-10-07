@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <string name="app_name">XandO</string>
+    <string name="gcm_defaultSenderId" translatable="false">405915341859</string>
+    <string name="google_api_key" translatable="false">AIzaSyDR_5jjojcbV93S5P4v67kZfWxIq4jVisU</string>
+    <string name="google_app_id" translatable="false">1:405915341859:android:79093fc8dc919a5db9cd96</string>
+    <string name="google_crash_reporting_api_key" translatable="false">AIzaSyDR_5jjojcbV93S5P4v67kZfWxIq4jVisU</string>
+    <string name="google_storage_bucket" translatable="false">xando-tictactoe.firebasestorage.app</string>
+    <string name="project_id" translatable="false">xando-tictactoe</string>
+    <style name="Base.Theme.XandO" parent="Theme.Material3.DayNight.NoActionBar">
+        
+        
+    </style>
+    <style name="Theme.XandO" parent="Base.Theme.XandO"/>
+</resources>

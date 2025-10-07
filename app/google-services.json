@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "405915341859",
+    "project_id": "xando-tictactoe",
+    "storage_bucket": "xando-tictactoe.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:405915341859:android:79093fc8dc919a5db9cd96",
+        "android_client_info": {
+          "package_name": "com.example.xando"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDR_5jjojcbV93S5P4v67kZfWxIq4jVisU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

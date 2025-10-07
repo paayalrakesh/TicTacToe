@@ -64,6 +64,10 @@ class HomeActivity : AppCompatActivity() {
         }
 
 
+        offlineBtn.setOnClickListener {
+            startActivity(Intent(this, MainActivity::class.java))
+        }
+
         soloBtn.setOnClickListener {
             startActivity(Intent(this, SoloActivity::class.java))
         }
