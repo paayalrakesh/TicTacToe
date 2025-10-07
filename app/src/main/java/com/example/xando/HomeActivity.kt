@@ -22,9 +22,47 @@ class HomeActivity : AppCompatActivity() {
         soloBtn = findViewById(R.id.SoloButton)
         onlineBtn = findViewById(R.id.OnlineButton)
 
-        offlineBtn.setOnClickListener {
-            startActivity(Intent(this, MainActivity::class.java))
+        onlineBtn.setOnClickListener {
+            // quick Host/Join chooser with a room code prompt when joining
+            val options = arrayOf("Host game (you are X)", "Join game (you are O)")
+            androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("Online Multiplayer")
+                .setItems(options) { _, which ->
+                    if (which == 0) {
+                        val room = (100000..999999).random().toString()
+                        startActivity(
+                            Intent(this, OnlineActivity::class.java)
+                                .putExtra("mode", "host")
+                                .putExtra("room", room)
+                        )
+                    } else {
+                        // prompt for a room code
+                        val input = android.widget.EditText(this).apply {
+                            hint = "Enter 6-digit room code"
+                            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+                        }
+                        androidx.appcompat.app.AlertDialog.Builder(this)
+                            .setTitle("Join Room")
+                            .setView(input)
+                            .setPositiveButton("Join") { _, _ ->
+                                val room = input.text.toString().trim()
+                                if (room.length >= 3) {
+                                    startActivity(
+                                        Intent(this, OnlineActivity::class.java)
+                                            .putExtra("mode", "join")
+                                            .putExtra("room", room)
+                                    )
+                                } else {
+                                    android.widget.Toast.makeText(this, "Invalid code", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                            .setNegativeButton("Cancel", null)
+                            .show()
+                    }
+                }
+                .show()
         }
+
 
         soloBtn.setOnClickListener {
             startActivity(Intent(this, SoloActivity::class.java))

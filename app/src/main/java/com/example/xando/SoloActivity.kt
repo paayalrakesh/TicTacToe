@@ -73,7 +73,7 @@ class SoloActivity : AppCompatActivity() {
     private fun aiMove() {
         if (gameOver) return
 
-        val bestMove = minimax(gameState, false).first
+        val bestMove = minimax(gameState, true).first
         if (bestMove == -1) return
 
         val button = gridLayout.getChildAt(bestMove) as Button

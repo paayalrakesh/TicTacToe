@@ -5,28 +5,27 @@ import android.view.View
 import android.widget.Button
 import android.widget.GridLayout
 import android.widget.Toast
-import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import com.google.firebase.database.DataSnapshot
-import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.DatabaseReference
-import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.ValueEventListener
+import com.google.firebase.database.*
+import com.google.firebase.FirebaseApp
+
 
 class OnlineActivity : AppCompatActivity() {
 
     private lateinit var dbRef: DatabaseReference
     private lateinit var gridLayout: GridLayout
     private lateinit var resetButton: Button
-    private var gameId = "game123" // You can generate or fetch this dynamically
-    private var playerSymbol = "X"
-    private var opponentSymbol = "O"
-    private var isPlayerTurn = true
+
+    private lateinit var gameId: String
+    private lateinit var mySymbol: String           // "X" or "O"
+    private lateinit var oppSymbol: String          // "O" or "X"
+    private var isMyTurn: Boolean = false
+
     private var gameState = Array(9) { "" }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+
+
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_online)
 
@@ -34,12 +33,45 @@ class OnlineActivity : AppCompatActivity() {
         resetButton = findViewById(R.id.resetButton)
         dbRef = FirebaseDatabase.getInstance().reference
 
-        initializeBoard()
-        listenToBoard()
-
-        resetButton.setOnClickListener {
-            resetGame()
+        if (FirebaseApp.getApps(this).isEmpty()) {
+            Toast.makeText(this, "Firebase not initialized", Toast.LENGTH_LONG).show()
+            // skip or finish to prevent crashes
+        } else {
+            Toast.makeText(this, "Firebase OK", Toast.LENGTH_SHORT).show()
         }
+
+        // ---- get mode + room from HomeActivity ----
+        val mode = intent.getStringExtra("mode") ?: "host"
+        gameId = intent.getStringExtra("room") ?: "000000"
+
+        if (mode == "host") {
+            mySymbol = "X"
+            oppSymbol = "O"
+            isMyTurn = true
+            createRoom()
+            Toast.makeText(this, "Hosting room $gameId", Toast.LENGTH_SHORT).show()
+        } else {
+            mySymbol = "O"
+            oppSymbol = "X"
+            isMyTurn = false
+            // join doesn't need to write players for now; just use board/turn
+            Toast.makeText(this, "Joined room $gameId", Toast.LENGTH_SHORT).show()
+        }
+
+        initializeBoard()
+        listenToRoom()
+
+        resetButton.setOnClickListener { resetGame() }
+    }
+
+    // Host creates initial state
+    private fun createRoom() {
+        val init = mapOf(
+            "board" to List(9) { "" },
+            "turn" to "X",
+            "result" to ""
+        )
+        dbRef.child("games").child(gameId).setValue(init)
     }
 
     private fun initializeBoard() {
@@ -54,9 +86,12 @@ class OnlineActivity : AppCompatActivity() {
                 }
                 text = ""
                 setOnClickListener {
-                    if (isPlayerTurn && text == "") {
-                        makeMove(i)
+                    if (text.isNotEmpty()) return@setOnClickListener
+                    if (!isMyTurn) {
+                        Toast.makeText(this@OnlineActivity, "Wait for your turn ($mySymbol)", Toast.LENGTH_SHORT).show()
+                        return@setOnClickListener
                     }
+                    makeMove(i)
                 }
             }
             gridLayout.addView(button)
@@ -64,62 +99,83 @@ class OnlineActivity : AppCompatActivity() {
     }
 
     private fun makeMove(index: Int) {
-        gameState[index] = playerSymbol
-        updateFirebaseBoard()
+        // write the move + advance turn, compute result server-side-ish (here in client then write)
+        val nextBoard = gameState.toMutableList()
+        nextBoard[index] = mySymbol
+
+        val winner = checkWinner(nextBoard)
+        val result = when {
+            winner == "X" -> "X"
+            winner == "O" -> "O"
+            nextBoard.all { it.isNotEmpty() } -> "draw"
+            else -> ""
+        }
+        val nextTurn = if (result.isEmpty()) oppSymbol else mySymbol
+
+        val updates = mapOf(
+            "board" to nextBoard,
+            "turn" to nextTurn,
+            "result" to result
+        )
+        dbRef.child("games").child(gameId).updateChildren(updates)
     }
 
-    private fun updateFirebaseBoard() {
-        dbRef.child("games").child(gameId).child("board").setValue(gameState.toList())
-        dbRef.child("games").child(gameId).child("turn").setValue(opponentSymbol)
-    }
+    private fun listenToRoom() {
+        dbRef.child("games").child(gameId)
+            .addValueEventListener(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    val board = snapshot.child("board").getValue(object : GenericTypeIndicator<List<String>>() {})
+                    val turn = snapshot.child("turn").getValue(String::class.java)
+                    val result = snapshot.child("result").getValue(String::class.java)
 
-    private fun listenToBoard() {
-        dbRef.child("games").child(gameId).addValueEventListener(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val board = snapshot.child("board").getValue(List::class.java)
-                val turn = snapshot.child("turn").getValue(String::class.java)
-                if (board != null && board.size == 9) {
-                    for (i in board.indices) {
-                        gameState[i] = (board[i] ?: "").toString()
-                        val button = gridLayout.getChildAt(i) as Button
-                        button.text = gameState[i]
+                    if (board != null && board.size == 9) {
+                        // update local state + UI
+                        for (i in board.indices) {
+                            gameState[i] = board[i]
+                            val btn = gridLayout.getChildAt(i) as Button
+                            btn.text = board[i]
+                            btn.isEnabled = result.isNullOrEmpty() && board[i].isEmpty()
+                        }
+                    }
+                    isMyTurn = (turn == mySymbol)
+
+                    // End state handling
+                    when (result) {
+                        "X" -> { toast("X wins!"); resetButton.visibility = View.VISIBLE }
+                        "O" -> { toast("O wins!"); resetButton.visibility = View.VISIBLE }
+                        "draw" -> { toast("It's a draw!"); resetButton.visibility = View.VISIBLE }
+                        else -> { /* ongoing */ }
                     }
                 }
-                isPlayerTurn = (turn == playerSymbol)
-                checkForWin()
-            }
-            override fun onCancelled(error: DatabaseError) {
-                Toast.makeText(this@OnlineActivity, "Database error", Toast.LENGTH_SHORT).show()
-            }
-        })
-    }
 
-    private fun checkForWin() {
-        val winningPositions = arrayOf(
-            arrayOf(0, 1, 2), arrayOf(3, 4, 5), arrayOf(6, 7, 8),
-            arrayOf(0, 3, 6), arrayOf(1, 4, 7), arrayOf(2, 5, 8),
-            arrayOf(0, 4, 8), arrayOf(2, 4, 6)
-        )
-        winningPositions.forEach { pos ->
-            if (gameState[pos[0]] == gameState[pos[1]] &&
-                gameState[pos[1]] == gameState[pos[2]] &&
-                gameState[pos[0]] != ""
-            ) {
-                Toast.makeText(this, "${gameState[pos[0]]} wins!", Toast.LENGTH_LONG).show()
-                resetButton.visibility = View.VISIBLE
-                return
-            }
-        }
-        if (gameState.none { it.isEmpty() }) {
-            Toast.makeText(this, "It's a draw!", Toast.LENGTH_LONG).show()
-            resetButton.visibility = View.VISIBLE
-        }
+                override fun onCancelled(error: DatabaseError) {
+                    toast("Database error: ${error.message}")
+                }
+            })
     }
 
     private fun resetGame() {
-        gameState.fill("")
-        dbRef.child("games").child(gameId).child("board").setValue(gameState.toList())
-        dbRef.child("games").child(gameId).child("turn").setValue("X")
+        val map = mapOf(
+            "board" to List(9) { "" },
+            "turn" to "X",
+            "result" to ""
+        )
+        dbRef.child("games").child(gameId).updateChildren(map)
         resetButton.visibility = View.INVISIBLE
     }
+
+    private fun checkWinner(b: List<String>): String? {
+        val w = arrayOf(
+            intArrayOf(0,1,2), intArrayOf(3,4,5), intArrayOf(6,7,8),
+            intArrayOf(0,3,6), intArrayOf(1,4,7), intArrayOf(2,5,8),
+            intArrayOf(0,4,8), intArrayOf(2,4,6)
+        )
+        for (line in w) {
+            val a = b[line[0]]
+            if (a.isNotEmpty() && a == b[line[1]] && a == b[line[2]]) return a
+        }
+        return null
+    }
+
+    private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
 }

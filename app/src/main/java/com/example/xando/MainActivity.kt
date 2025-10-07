@@ -42,7 +42,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun initializeBoard() {
         gridLayout.removeAllViews()
-        for (i in 0 until 9 ) {
+        for (i in 0 until 9) {
             val button = Button(this).apply {
                 layoutParams = GridLayout.LayoutParams().apply {
                     width = 0
@@ -51,11 +51,13 @@ class MainActivity : AppCompatActivity() {
                     columnSpec = GridLayout.spec(i % 3, 1f)
                 }
                 text = ""
+                isEnabled = true // ✅ ensure re-enabled after reset
                 setOnClickListener { playGame(this, i) }
             }
             gridLayout.addView(button)
         }
     }
+
 
     private fun playGame(button: Button, cellIndex: Int) {
         if (gameState[cellIndex].isNotEmpty()) {
@@ -69,11 +71,11 @@ class MainActivity : AppCompatActivity() {
         checkForWin() // Check if the move leads to a win or a draw -- method below
         if (playerTurn)
         {
-            Toast.makeText(this, "Player 2's turn (X)",Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Player 1's turn (X)",Toast.LENGTH_SHORT).show()
         }
         else
         {
-            Toast.makeText(this, "Player 1's turn (O)",Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Player 2's turn (O)",Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -89,7 +91,10 @@ class MainActivity : AppCompatActivity() {
                 gameState[pos[0]] != "") {
                 // We have a winner
                 showToast("${gameState[pos[0]]} has won")
-                gridLayout.isEnabled = false // Disable moves
+
+                for (i in 0 until gridLayout.childCount) {
+                    gridLayout.getChildAt(i).isEnabled = false
+                }
                 resetButton.visibility = View.VISIBLE //brings up the reset button
                 return
             }
@@ -97,7 +102,13 @@ class MainActivity : AppCompatActivity() {
         // Check for a draw (no empty cells left)
         if (gameState.none { it.isEmpty() }) {
             showToast("It's a draw")
-            gridLayout.isEnabled = false // Disable further moves
+
+            // 🔒 Disable all cells individually
+            for (i in 0 until gridLayout.childCount) {
+                gridLayout.getChildAt(i).isEnabled = false
+            }
+
+            resetButton.visibility = View.VISIBLE
         }
     }
 
